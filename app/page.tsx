@@ -447,7 +447,6 @@ export default function Home() {
         .insert({
           section_id: sectionId,
           runner_id: runnerId,
-          static_section_id: sectionId,
         });
 
       if (error) {
