@@ -775,202 +775,379 @@ export default function Home() {
           </button>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1800px] w-full table-fixed border-collapse text-gray-900">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 p-2 text-left">
-                  Section
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  Start Point
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  End Point
-                </th>
-                <th className="w-36 whitespace-nowrap border border-gray-300 p-2 text-left">
-                  Distance (km)
-                </th>
-                <th className="w-36 whitespace-nowrap border border-gray-300 p-2 text-left">
-                  Elevation Gain (m)
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  Type
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  Difficulty
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  Route URL
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  GPX
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  Runner
-                </th>
-                <th className="border border-gray-300 p-2 text-left">
-                  Actions
-                </th>
-              </tr>
-            </thead>
+        {/* Mobile card view */}
+<div className="mt-4 space-y-4 md:hidden">
+  {routeSections.map((section) => {
+    const distanceKm = section.distanceKm;
+    const elevationGainM = section.elevationGainM;
 
-            <tbody>
-              {routeSections.map((section) => {
-                const distanceKm = section.distanceKm;
-                const elevationGainM = section.elevationGainM;
+    return (
+      <div
+        key={section.id}
+        className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">
+              {section.name}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Section #{section.order}
+            </p>
+          </div>
 
-                return (
-                  <tr key={section.id}>
-                    <td className="border border-gray-300 p-2">
-                      {section.name}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-sm">
-                      {section.startPoint}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-sm">
-                      {section.endPoint}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-center">
-                      {distanceKm}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-center">
-                      {elevationGainM}
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-sm font-semibold ${getElevationStyle(
-                          elevationGainM
-                        )}`}
-                      >
-                        {getElevationLabel(elevationGainM)}
-                      </span>
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      {calculateDifficulty(distanceKm, elevationGainM)}
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
-                          placeholder="Paste route URL"
-                          value={routeUrls[section.id] ?? ""}
-                          onChange={(event) =>
-                            handleRouteUrlChange(section.id, event.target.value)
-                          }
-                          onBlur={() => handleRouteUrlSave(section.id)}
-                        />
-
-                        <button
-                          type="button"
-                          className="whitespace-nowrap rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
-                          disabled={!routeUrls[section.id]}
-                          onClick={() =>
-                            window.open(routeUrls[section.id], "_blank")
-                          }
-                        >
-                          Open
-                        </button>
-                      </div>
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
-                        Choose File
-                        <input
-                          type="file"
-                          accept=".gpx"
-                          className="hidden"
-                          onChange={(event) =>
-                            handleGpxUpload(
-                              section.id,
-                              event.target.files?.[0] ?? null
-                            )
-                          }
-                        />
-                      </label>
-                    </td>
-
-                    <td className="relative border border-gray-300 p-2">
-                      <button
-                        type="button"
-                        className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
-                        onClick={() =>
-                          setOpenSectionId(
-                            openSectionId === section.id ? null : section.id
-                          )
-                        }
-                      >
-                        {getAssignedRunnerNames(section.id)}
-                      </button>
-
-                      {openSectionId === section.id && (
-                        <div className="absolute z-10 mt-2 w-64 rounded border border-gray-300 bg-white p-3 shadow-lg">
-                          {runners.length === 0 && (
-                            <p className="p-2 text-sm text-gray-500">
-                              No runners registered.
-                            </p>
-                          )}
-
-                          {runners.map((runner) => {
-                            const assignedRunnerIds =
-                              runnerAssignments[section.id] ?? [];
-
-                            const isChecked = assignedRunnerIds.includes(
-                              runner.id
-                            );
-
-                            return (
-                              <label
-                                key={runner.id}
-                                className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() =>
-                                    toggleRunner(section.id, runner.id)
-                                  }
-                                />
-                                <span>{runner.englishName}</span>
-                              </label>
-                            );
-                          })}
-
-                          <button
-                            type="button"
-                            className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
-                            onClick={() => setOpenSectionId(null)}
-                          >
-                            Done
-                          </button>
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      <button
-                        type="button"
-                        className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
-                        onClick={() => handleDeleteSection(section.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <span
+            className={`rounded-full px-3 py-1 text-sm font-semibold ${getElevationStyle(
+              elevationGainM
+            )}`}
+          >
+            {getElevationLabel(elevationGainM)}
+          </span>
         </div>
+
+        <div className="mt-4 space-y-2 text-sm text-gray-700">
+          <p>
+            <span className="font-semibold">Start:</span>{" "}
+            {section.startPoint}
+          </p>
+          <p>
+            <span className="font-semibold">End:</span>{" "}
+            {section.endPoint}
+          </p>
+          <p>
+            <span className="font-semibold">Distance:</span>{" "}
+            {distanceKm} km
+          </p>
+          <p>
+            <span className="font-semibold">Elevation Gain:</span>{" "}
+            {elevationGainM} m
+          </p>
+          <p>
+            <span className="font-semibold">Difficulty:</span>{" "}
+            {calculateDifficulty(distanceKm, elevationGainM)}
+          </p>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="text-sm font-semibold text-gray-700">
+              Route URL
+            </label>
+            <div className="mt-1 flex gap-2">
+              <input
+                type="url"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
+                placeholder="Paste route URL"
+                value={routeUrls[section.id] ?? ""}
+                onChange={(event) =>
+                  handleRouteUrlChange(section.id, event.target.value)
+                }
+                onBlur={() => handleRouteUrlSave(section.id)}
+              />
+
+              <button
+                type="button"
+                className="rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
+                disabled={!routeUrls[section.id]}
+                onClick={() => window.open(routeUrls[section.id], "_blank")}
+              >
+                Open
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-gray-700">
+              GPX
+            </label>
+            <div className="mt-1">
+              <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
+                Choose File
+                <input
+                  type="file"
+                  accept=".gpx"
+                  className="hidden"
+                  onChange={(event) =>
+                    handleGpxUpload(
+                      section.id,
+                      event.target.files?.[0] ?? null
+                    )
+                  }
+                />
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-gray-700">
+              Runner
+            </label>
+            <div className="relative mt-1">
+              <button
+                type="button"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
+                onClick={() =>
+                  setOpenSectionId(
+                    openSectionId === section.id ? null : section.id
+                  )
+                }
+              >
+                {getAssignedRunnerNames(section.id)}
+              </button>
+
+              {openSectionId === section.id && (
+                <div className="absolute z-20 mt-2 w-full rounded border border-gray-300 bg-white p-3 shadow-lg">
+                  {runners.length === 0 && (
+                    <p className="p-2 text-sm text-gray-500">
+                      No runners registered.
+                    </p>
+                  )}
+
+                  {runners.map((runner) => {
+                    const assignedRunnerIds =
+                      runnerAssignments[section.id] ?? [];
+
+                    const isChecked = assignedRunnerIds.includes(
+                      runner.id
+                    );
+
+                    return (
+                      <label
+                        key={runner.id}
+                        className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() =>
+                            toggleRunner(section.id, runner.id)
+                          }
+                        />
+                        <span>{runner.englishName}</span>
+                      </label>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
+                    onClick={() => setOpenSectionId(null)}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="w-full rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
+            onClick={() => handleDeleteSection(section.id)}
+          >
+            Delete Section
+          </button>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+{/* Desktop table view */}
+<div className="mt-4 hidden overflow-x-auto md:block">
+  <table className="min-w-[1800px] w-full table-fixed border-collapse text-gray-900">
+    <thead>
+      <tr className="bg-gray-100">
+        <th className="border border-gray-300 p-2 text-left">
+          Section
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          Start Point
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          End Point
+        </th>
+        <th className="w-36 whitespace-nowrap border border-gray-300 p-2 text-left">
+          Distance (km)
+        </th>
+        <th className="w-36 whitespace-nowrap border border-gray-300 p-2 text-left">
+          Elevation Gain (m)
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          Type
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          Difficulty
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          Route URL
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          GPX
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          Runner
+        </th>
+        <th className="border border-gray-300 p-2 text-left">
+          Actions
+        </th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {routeSections.map((section) => {
+        const distanceKm = section.distanceKm;
+        const elevationGainM = section.elevationGainM;
+
+        return (
+          <tr key={section.id}>
+            <td className="border border-gray-300 p-2">
+              {section.name}
+            </td>
+
+            <td className="border border-gray-300 p-2 text-sm">
+              {section.startPoint}
+            </td>
+
+            <td className="border border-gray-300 p-2 text-sm">
+              {section.endPoint}
+            </td>
+
+            <td className="border border-gray-300 p-2 text-center">
+              {distanceKm}
+            </td>
+
+            <td className="border border-gray-300 p-2 text-center">
+              {elevationGainM}
+            </td>
+
+            <td className="border border-gray-300 p-2">
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-semibold ${getElevationStyle(
+                  elevationGainM
+                )}`}
+              >
+                {getElevationLabel(elevationGainM)}
+              </span>
+            </td>
+
+            <td className="border border-gray-300 p-2">
+              {calculateDifficulty(distanceKm, elevationGainM)}
+            </td>
+
+            <td className="border border-gray-300 p-2">
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
+                  placeholder="Paste route URL"
+                  value={routeUrls[section.id] ?? ""}
+                  onChange={(event) =>
+                    handleRouteUrlChange(section.id, event.target.value)
+                  }
+                  onBlur={() => handleRouteUrlSave(section.id)}
+                />
+
+                <button
+                  type="button"
+                  className="whitespace-nowrap rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
+                  disabled={!routeUrls[section.id]}
+                  onClick={() => window.open(routeUrls[section.id], "_blank")}
+                >
+                  Open
+                </button>
+              </div>
+            </td>
+
+            <td className="border border-gray-300 p-2">
+              <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
+                Choose File
+                <input
+                  type="file"
+                  accept=".gpx"
+                  className="hidden"
+                  onChange={(event) =>
+                    handleGpxUpload(
+                      section.id,
+                      event.target.files?.[0] ?? null
+                    )
+                  }
+                />
+              </label>
+            </td>
+
+            <td className="relative border border-gray-300 p-2">
+              <button
+                type="button"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
+                onClick={() =>
+                  setOpenSectionId(
+                    openSectionId === section.id ? null : section.id
+                  )
+                }
+              >
+                {getAssignedRunnerNames(section.id)}
+              </button>
+
+              {openSectionId === section.id && (
+                <div className="absolute z-10 mt-2 w-64 rounded border border-gray-300 bg-white p-3 shadow-lg">
+                  {runners.length === 0 && (
+                    <p className="p-2 text-sm text-gray-500">
+                      No runners registered.
+                    </p>
+                  )}
+
+                  {runners.map((runner) => {
+                    const assignedRunnerIds =
+                      runnerAssignments[section.id] ?? [];
+
+                    const isChecked = assignedRunnerIds.includes(
+                      runner.id
+                    );
+
+                    return (
+                      <label
+                        key={runner.id}
+                        className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() =>
+                            toggleRunner(section.id, runner.id)
+                          }
+                        />
+                        <span>{runner.englishName}</span>
+                      </label>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
+                    onClick={() => setOpenSectionId(null)}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </td>
+
+            <td className="border border-gray-300 p-2">
+              <button
+                type="button"
+                className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
+                onClick={() => handleDeleteSection(section.id)}
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
       </div>
 
       <div className="mt-8 rounded-xl bg-white p-4 shadow-md sm:p-6">
