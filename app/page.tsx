@@ -58,6 +58,10 @@ function normalizeParticipationLevel(value: string): ParticipationLevel {
   return "medium";
 }
 
+function convertKmToMiles(distanceKm: number) {
+  return Number((distanceKm * 0.621371).toFixed(2));
+}
+
 export default function Home() {
   const [runners, setRunners] = useState<Runner[]>(initialRunners);
   const [routeSections, setRouteSections] = useState<RouteSection[]>([]);
@@ -410,7 +414,7 @@ export default function Home() {
 
     const dataLines =
       lines[0]?.toLowerCase().includes("name") ||
-      lines[0]?.toLowerCase().includes("english")
+        lines[0]?.toLowerCase().includes("english")
         ? lines.slice(1)
         : lines;
 
@@ -573,9 +577,9 @@ export default function Home() {
       currentSections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              [field]: value,
-            }
+            ...section,
+            [field]: value,
+          }
           : section
       )
     );
@@ -635,10 +639,10 @@ export default function Home() {
       currentSections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              distanceKm,
-              elevationGainM,
-            }
+            ...section,
+            distanceKm,
+            elevationGainM,
+          }
           : section
       )
     );
@@ -905,7 +909,7 @@ export default function Home() {
 
                   <p>
                     <span className="font-semibold">Distance:</span>{" "}
-                    {distanceKm} km
+                    {distanceKm} km / {convertKmToMiles(distanceKm)} mi
                   </p>
 
                   <p>
@@ -1065,7 +1069,7 @@ export default function Home() {
                   End Point
                 </th>
                 <th className="w-36 whitespace-nowrap border border-gray-300 p-2 text-left">
-                  Distance (km)
+                  Distance
                 </th>
                 <th className="w-40 whitespace-nowrap border border-gray-300 p-2 text-left">
                   Elevation Gain (m)
@@ -1164,7 +1168,10 @@ export default function Home() {
                     </td>
 
                     <td className="border border-gray-300 p-2 text-center">
-                      {distanceKm}
+                      <div>{distanceKm} km</div>
+                      <div className="text-xs text-gray-500">
+                        {convertKmToMiles(distanceKm)} mi
+                      </div>
                     </td>
 
                     <td className="border border-gray-300 p-2 text-center">
@@ -1347,8 +1354,8 @@ export default function Home() {
                   difficulty === "hard"
                     ? "bg-red-500"
                     : difficulty === "medium"
-                    ? "bg-yellow-500"
-                    : "bg-green-500";
+                      ? "bg-yellow-500"
+                      : "bg-green-500";
 
                 return (
                   <div
