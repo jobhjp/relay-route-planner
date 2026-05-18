@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import GPXParser from "gpxparser";
 import { initialRunners } from "../data/runners";
 import RunnerRegistrationModal from "../components/RunnerRegistrationModal";
@@ -67,6 +68,10 @@ export default function Home() {
   const [openSectionId, setOpenSectionId] = useState<string | null>(null);
   const [routeUrls, setRouteUrls] = useState<Record<string, string>>({});
   const [isRunnerModalOpen, setIsRunnerModalOpen] = useState(false);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [sortKey, setSortKey] = useState<RunnerSortKey>("name");
@@ -157,10 +162,23 @@ export default function Home() {
   }
 
   useEffect(() => {
-    loadRunners();
-    loadRouteSections();
-    loadAssignments();
-  }, []);
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser();
+    setUser(data.user);
+  }
+
+  loadUser();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setUser(session?.user ?? null);
+    }
+  );
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   async function handleAddSection() {
     const nextOrder =
@@ -353,7 +371,7 @@ export default function Home() {
 
     const dataLines =
       lines[0]?.toLowerCase().includes("name") ||
-      lines[0]?.toLowerCase().includes("english")
+        lines[0]?.toLowerCase().includes("english")
         ? lines.slice(1)
         : lines;
 
@@ -509,13 +527,36 @@ export default function Home() {
       currentSections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              [field]: value,
-            }
+            ...section,
+            [field]: value,
+          }
           : section
       )
     );
   }
+
+  async function handleLogin() {
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    alert(`Login failed: ${error.message}`);
+    return;
+  }
+
+  setEmail("");
+  setPassword("");
+}
+
+async function handleLogout() {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    alert(`Logout failed: ${error.message}`);
+  }
+}
 
   async function handleSectionTextSave(
     sectionId: string,
@@ -569,15 +610,16 @@ export default function Home() {
       currentSections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              distanceKm,
-              elevationGainM,
-            }
+            ...section,
+            distanceKm,
+            elevationGainM,
+          }
           : section
       )
     );
   }
 
+  const isAdmin = user !== null;
   const visibleRunners = runners
     .filter((runner) =>
       runner.englishName.toLowerCase().includes(searchKeyword.toLowerCase())
@@ -610,13 +652,53 @@ export default function Home() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
-          onClick={() => setIsRunnerModalOpen(true)}
-        >
-          Register Runner
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+  {isAdmin ? (
+    <>
+      <button
+        type="button"
+        className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
+        onClick={() => setIsRunnerModalOpen(true)}
+      >
+        Register Runner
+      </button>
+
+      <button
+        type="button"
+        className="rounded bg-gray-700 px-4 py-2 font-semibold text-white"
+        onClick={handleLogout}
+      >
+        Logout
+      </button>
+    </>
+  ) : (
+    <>
+      <input
+        type="email"
+        className="rounded border border-gray-300 px-3 py-2"
+        placeholder="Email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+
+      <input
+        type="password"
+        className="rounded border border-gray-300 px-3 py-2"
+        placeholder="Password"
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+      />
+
+      <button
+        type="button"
+        className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
+        onClick={handleLogin}
+      >
+        Login
+      </button>
+    </>
+  )}
+</div>
       </div>
 
       <div className="mt-8 rounded-xl bg-white p-4 shadow-md sm:p-6">
@@ -1150,8 +1232,8 @@ export default function Home() {
                   difficulty === "hard"
                     ? "bg-red-500"
                     : difficulty === "medium"
-                    ? "bg-yellow-500"
-                    : "bg-green-500";
+                      ? "bg-yellow-500"
+                      : "bg-green-500";
 
                 return (
                   <div
