@@ -23,6 +23,7 @@ type RouteSection = {
   distanceKm: number;
   elevationGainM: number;
   routeUrl: string;
+  completed: boolean;
 };
 
 type RunnerSortKey = "name" | "record" | "participation";
@@ -129,6 +130,8 @@ export default function Home() {
       distanceKm: Number(section.distance_km ?? 0),
       elevationGainM: Number(section.elevation_gain_m ?? 0),
       routeUrl: section.route_url ?? "",
+      completed: section.completed ?? false,
+
     }));
 
     const loadedRouteUrls: Record<string, string> = {};
@@ -231,6 +234,7 @@ export default function Home() {
         distance_km: 0,
         elevation_gain_m: 0,
         route_url: "",
+        completed: false,
       })
       .select()
       .single();
@@ -249,6 +253,8 @@ export default function Home() {
       distanceKm: Number(data.distance_km ?? 0),
       elevationGainM: Number(data.elevation_gain_m ?? 0),
       routeUrl: data.route_url ?? "",
+      completed: data.completed ?? false,
+
     };
 
     setRouteSections((currentSections) => [...currentSections, newSection]);
@@ -604,6 +610,32 @@ export default function Home() {
     }
   }
 
+  async function toggleSectionCompleted(sectionId: string, completed: boolean) {
+    if (!isAdmin) return;
+
+    const nextCompleted = !completed;
+
+    const { error } = await supabase
+      .from("route_sections")
+      .update({
+        completed: nextCompleted,
+      })
+      .eq("id", sectionId);
+
+    if (error) {
+      alert(`Failed to update section status: ${error.message}`);
+      return;
+    }
+
+    setRouteSections((currentSections) =>
+      currentSections.map((section) =>
+        section.id === sectionId
+          ? { ...section, completed: nextCompleted }
+          : section
+      )
+    );
+  }
+
   async function handleGpxUpload(sectionId: string, file: File | null) {
     if (!file || !isAdmin) return;
 
@@ -850,6 +882,22 @@ export default function Home() {
                 <h3 className="text-xl font-bold text-gray-900">
                   {section.name}
                 </h3>
+                {section.completed && (
+                  <span className="mt-2 inline-block rounded bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                    Completed
+                  </span>
+                )}
+
+                {isAdmin && (
+                  <label className="mt-3 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={section.completed}
+                      onChange={() => toggleSectionCompleted(section.id, section.completed)}
+                    />
+                    <span className="text-sm font-medium">Completed</span>
+                  </label>
+                )}
 
                 <div className="mt-4 space-y-3 text-sm text-gray-700">
                   {isAdmin ? (
@@ -1062,6 +1110,9 @@ export default function Home() {
                 <th className="w-32 border border-gray-300 p-2 text-left">
                   Section
                 </th>
+                <th className="w-28 border border-gray-300 p-2 text-left">
+                  Status                </th>
+
                 <th className="w-52 border border-gray-300 p-2 text-left">
                   Start Point
                 </th>
@@ -1106,11 +1157,36 @@ export default function Home() {
                 );
 
                 return (
-                  <tr key={section.id}>
+                  <tr key={section.id} className={section.completed ? "bg-green-50" : ""}>
                     <td className="border border-gray-300 p-2">
                       {section.name}
                     </td>
+                    {/* Status */}
+                    <td className="border border-gray-300 p-2 text-center">
+                      {isAdmin ? (
+                        <label className="flex items-center justify-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={section.completed}
+                            onChange={() =>
+                              toggleSectionCompleted(
+                                section.id,
+                                section.completed
+                              )
+                            }
+                          />
+                          <span className="text-sm">Done</span>
+                        </label>
+                      ) : section.completed ? (
+                        <span className="rounded bg-green-100 px-2 py-1 text-sm font-semibold text-green-700">
+                          Completed
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">Pending</span>
+                      )}
+                    </td>
 
+                    {/* Start Point */}
                     <td className="border border-gray-300 p-2">
                       {isAdmin ? (
                         <input
