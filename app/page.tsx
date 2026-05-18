@@ -611,7 +611,6 @@ export default function Home() {
   }
 
   async function toggleSectionCompleted(sectionId: string, completed: boolean) {
-    if (!isAdmin) return;
 
     const nextCompleted = !completed;
 
@@ -888,16 +887,17 @@ export default function Home() {
                   </span>
                 )}
 
-                {isAdmin && (
-                  <label className="mt-3 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={section.completed}
-                      onChange={() => toggleSectionCompleted(section.id, section.completed)}
-                    />
-                    <span className="text-sm font-medium">Completed</span>
-                  </label>
-                )}
+
+                <label className="mt-3 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={section.completed}
+                    onChange={() => toggleSectionCompleted(section.id, section.completed)}
+                  />
+                  <span className="text-sm">
+                    {section.completed ? "Done" : "Pending"}
+                  </span>
+                </label>
 
                 <div className="mt-4 space-y-3 text-sm text-gray-700">
                   {isAdmin ? (
@@ -1163,27 +1163,21 @@ export default function Home() {
                     </td>
                     {/* Status */}
                     <td className="border border-gray-300 p-2 text-center">
-                      {isAdmin ? (
-                        <label className="flex items-center justify-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={section.completed}
-                            onChange={() =>
-                              toggleSectionCompleted(
-                                section.id,
-                                section.completed
-                              )
-                            }
-                          />
-                          <span className="text-sm">Done</span>
-                        </label>
-                      ) : section.completed ? (
-                        <span className="rounded bg-green-100 px-2 py-1 text-sm font-semibold text-green-700">
-                          Completed
+                      <label className="flex items-center justify-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={section.completed}
+                          onChange={() =>
+                            toggleSectionCompleted(
+                              section.id,
+                              section.completed
+                            )
+                          }
+                        />
+                        <span className="text-sm">
+                          {section.completed ? "Done" : "Pending"}
                         </span>
-                      ) : (
-                        <span className="text-sm text-gray-400">Pending</span>
-                      )}
+                      </label>
                     </td>
 
                     {/* Start Point */}
