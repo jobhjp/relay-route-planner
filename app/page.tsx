@@ -162,12 +162,16 @@ export default function Home() {
   }
 
   useEffect(() => {
-  async function loadUser() {
+  async function initializePage() {
+    await loadRunners();
+    await loadRouteSections();
+    await loadAssignments();
+
     const { data } = await supabase.auth.getUser();
     setUser(data.user);
   }
 
-  loadUser();
+  initializePage();
 
   const { data: listener } = supabase.auth.onAuthStateChange(
     (_event, session) => {
