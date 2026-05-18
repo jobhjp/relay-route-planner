@@ -1,30 +1,29 @@
-export type Difficulty = "easy" | "normal" | "hard";
+export type Difficulty = "easy" | "medium" | "hard";
 
-/**
- * Calculate difficulty based on uphill meters per kilometer.
- *
- * easy   : < 10 m/km
- * normal : 10 - 24.9 m/km
- * hard   : >= 25 m/km
- */
 export function calculateDifficulty(
   distanceKm: number,
-  elevationDiffM: number
+  elevationGainM: number
 ): Difficulty {
-  if (distanceKm <= 0) {
-    return "easy";
-  }
-
-  const uphillMeters = Math.max(elevationDiffM, 0);
-  const climbRate = uphillMeters / distanceKm;
-
-  if (climbRate >= 25) {
+  if (elevationGainM >= 100) {
     return "hard";
   }
 
-  if (climbRate >= 10) {
-    return "normal";
+  if (elevationGainM >= 50) {
+    return "medium";
   }
 
   return "easy";
+}
+
+export function getDifficultyStyle(difficulty: Difficulty): string {
+  switch (difficulty) {
+    case "hard":
+      return "bg-red-100 text-red-700";
+
+    case "medium":
+      return "bg-yellow-100 text-yellow-700";
+
+    default:
+      return "bg-green-100 text-green-700";
+  }
 }
