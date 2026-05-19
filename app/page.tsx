@@ -73,7 +73,7 @@ export default function Home() {
   const [openSectionId, setOpenSectionId] = useState<string | null>(null);
   const [routeUrls, setRouteUrls] = useState<Record<string, string>>({});
   const [isRunnerModalOpen, setIsRunnerModalOpen] = useState(false);
-
+  const [isRunnerListOpen, setIsRunnerListOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -766,6 +766,13 @@ export default function Home() {
             <h2 className="text-2xl font-semibold text-gray-900">
               Registered Runners
             </h2>
+            <button
+              type="button"
+              className="rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white sm:hidden"
+              onClick={() => setIsRunnerListOpen((current) => !current)}
+            >
+              {isRunnerListOpen ? "Hide" : "Show"}
+            </button>
             <p className="text-sm text-gray-600">
               {runners.length} / {MAX_RUNNER_COUNT}
             </p>
@@ -807,7 +814,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-4 space-y-2">
+        <div className={`mt-4 space-y-2 ${isRunnerListOpen ? "block" : "hidden"} sm:block`}>
           {visibleRunners.length === 0 ? (
             <p className="text-gray-500">No runners found.</p>
           ) : (
