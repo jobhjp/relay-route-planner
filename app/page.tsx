@@ -1025,52 +1025,20 @@ export default function Home() {
       </div>
 
       <div className="mt-8 rounded-xl bg-white p-4 shadow-md sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-semibold text-gray-900">
             Route Sections
           </h2>
 
-          <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-end">
-            <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 lg:w-72">
-              <div className="mb-2 flex items-center justify-between text-sm font-medium text-gray-700">
-                <span>
-                  Completed {completedDistanceKm.toFixed(1)} /{" "}
-                  {totalDistanceKm.toFixed(1)} km
-                </span>
-
-                <span>{completedProgressPercent}%</span>
-              </div>
-
-              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full rounded-full bg-green-500 transition-all duration-300"
-                  style={{
-                    width: `${completedProgressPercent}%`,
-                  }}
-                />
-              </div>
-            </div>
-
+          {isAdmin && (
             <button
               type="button"
-              className="rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white"
-              onClick={() =>
-                setHideCompletedSections((current) => !current)
-              }
+              className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
+              onClick={handleAddSection}
             >
-              {hideCompletedSections ? "Show Completed" : "Hide Completed"}
+              Add Section
             </button>
-
-            {isAdmin && (
-              <button
-                type="button"
-                className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
-                onClick={handleAddSection}
-              >
-                Add Section
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         <div className="mt-4 space-y-4 md:hidden">
@@ -1406,6 +1374,40 @@ export default function Home() {
                 </div>
               );
             })}
+        </div>
+
+        <div className="mb-3 hidden md:flex justify-end">
+          <div className="flex items-end gap-3">
+            <div className="w-72 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="mb-2 flex items-center justify-between text-sm font-medium text-gray-700">
+                <span>
+                  Completed {completedDistanceKm.toFixed(1)} /{" "}
+                  {totalDistanceKm.toFixed(1)} km
+                </span>
+
+                <span>{completedProgressPercent}%</span>
+              </div>
+
+              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full rounded-full bg-green-500 transition-all duration-300"
+                  style={{
+                    width: `${completedProgressPercent}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="rounded bg-gray-700 px-4 py-3 text-sm font-semibold text-white"
+              onClick={() =>
+                setHideCompletedSections((current) => !current)
+              }
+            >
+              {hideCompletedSections ? "Show Completed" : "Hide Completed"}
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 hidden overflow-x-auto md:block">
