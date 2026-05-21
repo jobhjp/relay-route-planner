@@ -24,6 +24,8 @@ type RouteSection = {
   elevationGainM: number;
   routeUrl: string;
   completed: boolean;
+  startTime: string;
+  arrivalTime: string;
 };
 
 type RunnerSortKey = "name" | "record" | "participation";
@@ -131,6 +133,8 @@ export default function Home() {
       elevationGainM: Number(section.elevation_gain_m ?? 0),
       routeUrl: section.route_url ?? "",
       completed: section.completed ?? false,
+      startTime: section.start_time ?? "",
+      arrivalTime: section.arrival_time ?? "",
 
     }));
 
@@ -235,6 +239,8 @@ export default function Home() {
         elevation_gain_m: 0,
         route_url: "",
         completed: false,
+        start_time: "",
+        arrival_time: "",
       })
       .select()
       .single();
@@ -254,6 +260,8 @@ export default function Home() {
       elevationGainM: Number(data.elevation_gain_m ?? 0),
       routeUrl: data.route_url ?? "",
       completed: data.completed ?? false,
+      startTime: data.start_time ?? "",
+      arrivalTime: data.arrival_time ?? "",
 
     };
 
@@ -679,6 +687,44 @@ export default function Home() {
     );
   }
 
+  function handleTimeChange(
+    sectionId: string,
+    field: "startTime" | "arrivalTime",
+    value: string
+  ) {
+    if (!isAdmin) return;
+
+    setRouteSections((currentSections) =>
+      currentSections.map((section) =>
+        section.id === sectionId
+          ? {
+            ...section,
+            [field]: value,
+          }
+          : section
+      )
+    );
+  }
+
+  async function handleTimeSave(
+    sectionId: string,
+    column: "start_time" | "arrival_time",
+    value: string
+  ) {
+    if (!isAdmin) return;
+
+    const { error } = await supabase
+      .from("route_sections")
+      .update({
+        [column]: value,
+      })
+      .eq("id", sectionId);
+
+    if (error) {
+      alert(`Failed to save time: ${error.message}`);
+    }
+  }
+
   const visibleRunners = runners
     .filter((runner) =>
       runner.englishName.toLowerCase().includes(searchKeyword.toLowerCase())
@@ -982,6 +1028,62 @@ export default function Home() {
                       {difficulty}
                     </span>
                   </p>
+
+                  <p>
+                    <span className="font-semibold">Start Time:</span>{" "}
+                    {isAdmin ? (
+                      <input
+                        type="time"
+                        step="1"
+                        className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+                        value={section.startTime}
+                        onChange={(event) =>
+                          handleTimeChange(
+                            section.id,
+                            "startTime",
+                            event.target.value
+                          )
+                        }
+                        onBlur={(event) =>
+                          handleTimeSave(
+                            section.id,
+                            "start_time",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      section.startTime || "-"
+                    )}
+                  </p>
+
+                  <p className="mt-2">
+                    <span className="font-semibold">Arrival Time:</span>{" "}
+                    {isAdmin ? (
+                      <input
+                        type="time"
+                        step="1"
+                        className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+                        value={section.arrivalTime}
+                        onChange={(event) =>
+                          handleTimeChange(
+                            section.id,
+                            "arrivalTime",
+                            event.target.value
+                          )
+                        }
+                        onBlur={(event) =>
+                          handleTimeSave(
+                            section.id,
+                            "arrival_time",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      section.arrivalTime || "-"
+                    )}
+                  </p>
                 </div>
 
                 <div className="mt-4 space-y-3">
@@ -1111,43 +1213,49 @@ export default function Home() {
         </div>
 
         <div className="mt-4 hidden overflow-x-auto md:block">
-          <table className="min-w-[1500px] table-auto border-collapse text-gray-900">
+          <table className="min-w-[1500px] table-auto border-collapse text-center text-gray-900">
             <thead>
               <tr className="bg-gray-100">
-                <th className="w-32 border border-gray-300 p-2 text-left">
+                <th className="w-32 border border-gray-300 p-2">
                   Section
                 </th>
-                <th className="w-28 border border-gray-300 p-2 text-left">
+                <th className="w-28 border border-gray-300 p-2">
                   Status                </th>
 
-                <th className="w-52 border border-gray-300 p-2 text-left">
+                <th className="w-52 border border-gray-300 p-2">
                   Start Point
                 </th>
-                <th className="w-52 border border-gray-300 p-2 text-left">
+                <th className="w-52 border border-gray-300 p-2">
                   End Point
                 </th>
-                <th className="w-36 whitespace-nowrap border border-gray-300 p-2 text-left">
+                <th className="w-36 whitespace-nowrap border border-gray-300 p-2">
                   Distance
                 </th>
-                <th className="w-40 whitespace-nowrap border border-gray-300 p-2 text-left">
+                <th className="w-40 whitespace-nowrap border border-gray-300 p-2">
                   Elevation Gain (m)
                 </th>
-                <th className="w-32 border border-gray-300 p-2 text-left">
+                <th className="w-32 border border-gray-300 p-2">
                   Difficulty
                 </th>
-                <th className="w-64 border border-gray-300 p-2 text-left">
+                <th className="w-64 border border-gray-300 p-2">
                   Route URL
                 </th>
                 {isAdmin && (
-                  <th className="w-32 border border-gray-300 p-2 text-left">
+                  <th className="w-32 border border-gray-300 p-2">
                     GPX
                   </th>
                 )}
-                <th className="w-64 border border-gray-300 p-2 text-left">
+                <th className="w-64 border border-gray-300 p-2">
                   Runner
                 </th>
+                <th className="w-36 border border-gray-300 p-2">
+                  Start Time
+                </th>
+                <th className="w-36 border border-gray-300 p-2">
+                  Arrival Time
+                </th>
                 {isAdmin && (
-                  <th className="w-28 border border-gray-300 p-2 text-left">
+                  <th className="w-28 border border-gray-300 p-2">
                     Actions
                   </th>
                 )}
@@ -1384,6 +1492,60 @@ export default function Home() {
                         <span className="text-sm">
                           {getAssignedRunnerNames(section.id)}
                         </span>
+                      )}
+                    </td>
+
+                    <td className="border border-gray-300 p-2 text-center">
+                      {isAdmin ? (
+                        <input
+                          type="time"
+                          step="1"
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          value={section.startTime}
+                          onChange={(event) =>
+                            handleTimeChange(
+                              section.id,
+                              "startTime",
+                              event.target.value
+                            )
+                          }
+                          onBlur={(event) =>
+                            handleTimeSave(
+                              section.id,
+                              "start_time",
+                              event.target.value
+                            )
+                          }
+                        />
+                      ) : (
+                        section.startTime || "-"
+                      )}
+                    </td>
+
+                    <td className="border border-gray-300 p-2 text-center">
+                      {isAdmin ? (
+                        <input
+                          type="time"
+                          step="1"
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          value={section.arrivalTime}
+                          onChange={(event) =>
+                            handleTimeChange(
+                              section.id,
+                              "arrivalTime",
+                              event.target.value
+                            )
+                          }
+                          onBlur={(event) =>
+                            handleTimeSave(
+                              section.id,
+                              "arrival_time",
+                              event.target.value
+                            )
+                          }
+                        />
+                      ) : (
+                        section.arrivalTime || "-"
                       )}
                     </td>
 
