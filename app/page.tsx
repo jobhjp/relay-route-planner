@@ -709,20 +709,117 @@ export default function Home() {
   async function handleTimeSave(
     sectionId: string,
     column: "start_time" | "arrival_time",
+    oldValue: string,
     value: string
   ) {
     if (!isAdmin) return;
 
-    const { error } = await supabase
-      .from("route_sections")
-      .update({
-        [column]: value,
-      })
-      .eq("id", sectionId);
+    const targetSection = routeSections.find(
+      (section) => section.id === sectionId
+    );
 
-    if (error) {
-      alert(`Failed to save time: ${error.message}`);
+    if (!targetSection) return;
+
+    const field = column === "start_time" ? "startTime" : "arrivalTime";
+    const normalizedValue = value.length === 5 ? `${value}:00` : value;
+
+    if (!oldValue || oldValue === normalizedValue) {
+      const { error } = await supabase
+        .from("route_sections")
+        .update({
+          [column]: normalizedValue,
+        })
+        .eq("id", sectionId);
+
+      if (error) {
+        alert(`Failed to save time: ${error.message}`);
+      }
+
+      return;
     }
+
+    const diffMinutes =
+      timeToMinutes(normalizedValue) - timeToMinutes(oldValue);
+
+    if (diffMinutes === 0) return;
+
+    const confirmed = window.confirm(
+      `This change will shift this section and all following sections by ${diffMinutes > 0 ? "+" : ""
+      }${diffMinutes} minutes.\n\nContinue?`
+    );
+
+    if (!confirmed) {
+      setRouteSections((currentSections) =>
+        currentSections.map((section) =>
+          section.id === sectionId
+            ? {
+              ...section,
+              [field]: oldValue,
+            }
+            : section
+        )
+      );
+      return;
+    }
+
+    const updatedSections = routeSections.map((section) => {
+      if (section.order < targetSection.order) {
+        return section;
+      }
+
+      // 수정한 섹션 포함, 이후 모든 섹션을 같은 차이만큼 이동
+      return {
+        ...section,
+        startTime: section.startTime
+          ? addMinutesToTime(section.startTime, diffMinutes)
+          : "",
+        arrivalTime: section.arrivalTime
+          ? addMinutesToTime(section.arrivalTime, diffMinutes)
+          : "",
+      };
+    });
+
+    setRouteSections(updatedSections);
+
+    const sectionsToUpdate = updatedSections.filter(
+      (section) => section.order >= targetSection.order
+    );
+
+    for (const section of sectionsToUpdate) {
+      const { error } = await supabase
+        .from("route_sections")
+        .update({
+          start_time: section.startTime,
+          arrival_time: section.arrivalTime,
+        })
+        .eq("id", section.id);
+
+      if (error) {
+        alert(`Failed to update section ${section.order}: ${error.message}`);
+        return;
+      }
+    }
+  }
+
+  function timeToMinutes(time: string) {
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + minutes;
+  }
+
+  function minutesToTime(totalMinutes: number) {
+    const minutesInDay = 24 * 60;
+    const normalized =
+      ((totalMinutes % minutesInDay) + minutesInDay) % minutesInDay;
+
+    const hours = Math.floor(normalized / 60);
+    const minutes = normalized % 60;
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+  }
+
+  function addMinutesToTime(time: string, diffMinutes: number) {
+    if (!time) return "";
+    return minutesToTime(timeToMinutes(time) + diffMinutes);
   }
 
   const visibleRunners = runners
@@ -973,6 +1070,7 @@ export default function Home() {
                             event.target.value
                           )
                         }
+
                       />
 
                       <input
@@ -993,6 +1091,7 @@ export default function Home() {
                             event.target.value
                           )
                         }
+
                       />
                     </>
                   ) : (
@@ -1029,29 +1128,48 @@ export default function Home() {
                     </span>
                   </p>
 
+
                   <p>
                     <span className="font-semibold">Start Time:</span>{" "}
                     {isAdmin ? (
-                      <input
-                        type="time"
-                        step="1"
-                        className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-                        value={section.startTime}
-                        onChange={(event) =>
-                          handleTimeChange(
-                            section.id,
-                            "startTime",
-                            event.target.value
-                          )
-                        }
-                        onBlur={(event) =>
-                          handleTimeSave(
-                            section.id,
-                            "start_time",
-                            event.target.value
-                          )
-                        }
-                      />
+                      <div className="mt-1 flex gap-2">
+                        <input
+                          type="time"
+                          step="1"
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          value={section.startTime}
+                          onChange={(event) =>
+                            handleTimeChange(
+                              section.id,
+                              "startTime",
+                              event.target.value
+                            )
+                          }
+                          onFocus={(event) => {
+                            event.currentTarget.dataset.oldValue =
+                              section.startTime;
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
+                          onClick={(event) => {
+                            const input =
+                              event.currentTarget
+                                .previousElementSibling as HTMLInputElement;
+
+                            handleTimeSave(
+                              section.id,
+                              "start_time",
+                              input.dataset.oldValue ?? section.startTime,
+                              input.value
+                            );
+                          }}
+                        >
+                          Apply
+                        </button>
+                      </div>
                     ) : (
                       section.startTime || "-"
                     )}
@@ -1060,26 +1178,44 @@ export default function Home() {
                   <p className="mt-2">
                     <span className="font-semibold">Arrival Time:</span>{" "}
                     {isAdmin ? (
-                      <input
-                        type="time"
-                        step="1"
-                        className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-                        value={section.arrivalTime}
-                        onChange={(event) =>
-                          handleTimeChange(
-                            section.id,
-                            "arrivalTime",
-                            event.target.value
-                          )
-                        }
-                        onBlur={(event) =>
-                          handleTimeSave(
-                            section.id,
-                            "arrival_time",
-                            event.target.value
-                          )
-                        }
-                      />
+                      <div className="mt-1 flex gap-2">
+                        <input
+                          type="time"
+                          step="1"
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          value={section.arrivalTime}
+                          onChange={(event) =>
+                            handleTimeChange(
+                              section.id,
+                              "arrivalTime",
+                              event.target.value
+                            )
+                          }
+                          onFocus={(event) => {
+                            event.currentTarget.dataset.oldValue =
+                              section.arrivalTime;
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
+                          onClick={(event) => {
+                            const input =
+                              event.currentTarget
+                                .previousElementSibling as HTMLInputElement;
+
+                            handleTimeSave(
+                              section.id,
+                              "arrival_time",
+                              input.dataset.oldValue ?? section.arrivalTime,
+                              input.value
+                            );
+                          }}
+                        >
+                          Apply
+                        </button>
+                      </div>
                     ) : (
                       section.arrivalTime || "-"
                     )}
@@ -1316,6 +1452,7 @@ export default function Home() {
                               event.target.value
                             )
                           }
+
                         />
                       ) : (
                         <span className="text-sm">
@@ -1497,26 +1634,44 @@ export default function Home() {
 
                     <td className="border border-gray-300 p-2 text-center">
                       {isAdmin ? (
-                        <input
-                          type="time"
-                          step="1"
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                          value={section.startTime}
-                          onChange={(event) =>
-                            handleTimeChange(
-                              section.id,
-                              "startTime",
-                              event.target.value
-                            )
-                          }
-                          onBlur={(event) =>
-                            handleTimeSave(
-                              section.id,
-                              "start_time",
-                              event.target.value
-                            )
-                          }
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            step="1"
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            value={section.startTime}
+                            onChange={(event) =>
+                              handleTimeChange(
+                                section.id,
+                                "startTime",
+                                event.target.value
+                              )
+                            }
+                            onFocus={(event) => {
+                              event.currentTarget.dataset.oldValue =
+                                section.startTime;
+                            }}
+                          />
+
+                          <button
+                            type="button"
+                            className="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white"
+                            onClick={(event) => {
+                              const input =
+                                event.currentTarget
+                                  .previousElementSibling as HTMLInputElement;
+
+                              handleTimeSave(
+                                section.id,
+                                "start_time",
+                                input.dataset.oldValue ?? section.startTime,
+                                input.value
+                              );
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
                       ) : (
                         section.startTime || "-"
                       )}
@@ -1524,26 +1679,44 @@ export default function Home() {
 
                     <td className="border border-gray-300 p-2 text-center">
                       {isAdmin ? (
-                        <input
-                          type="time"
-                          step="1"
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                          value={section.arrivalTime}
-                          onChange={(event) =>
-                            handleTimeChange(
-                              section.id,
-                              "arrivalTime",
-                              event.target.value
-                            )
-                          }
-                          onBlur={(event) =>
-                            handleTimeSave(
-                              section.id,
-                              "arrival_time",
-                              event.target.value
-                            )
-                          }
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            step="1"
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            value={section.arrivalTime}
+                            onChange={(event) =>
+                              handleTimeChange(
+                                section.id,
+                                "arrivalTime",
+                                event.target.value
+                              )
+                            }
+                            onFocus={(event) => {
+                              event.currentTarget.dataset.oldValue =
+                                section.arrivalTime;
+                            }}
+                          />
+
+                          <button
+                            type="button"
+                            className="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white"
+                            onClick={(event) => {
+                              const input =
+                                event.currentTarget
+                                  .previousElementSibling as HTMLInputElement;
+
+                              handleTimeSave(
+                                section.id,
+                                "arrival_time",
+                                input.dataset.oldValue ?? section.arrivalTime,
+                                input.value
+                              );
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
                       ) : (
                         section.arrivalTime || "-"
                       )}
