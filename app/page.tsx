@@ -76,6 +76,7 @@ export default function Home() {
   const [routeUrls, setRouteUrls] = useState<Record<string, string>>({});
   const [isRunnerModalOpen, setIsRunnerModalOpen] = useState(false);
   const [isRunnerListOpen, setIsRunnerListOpen] = useState(false);
+  const [hideCompletedSections, setHideCompletedSections] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -763,11 +764,20 @@ export default function Home() {
     }
 
     const updatedSections = routeSections.map((section) => {
+      // 이전 섹션은 그대로
       if (section.order < targetSection.order) {
         return section;
       }
 
-      // 수정한 섹션 포함, 이후 모든 섹션을 같은 차이만큼 이동
+      // 현재 수정한 섹션
+      if (section.id === sectionId) {
+        return {
+          ...section,
+          [field]: normalizedValue,
+        };
+      }
+
+      // 이후 섹션만 이동
       return {
         ...section,
         startTime: section.startTime
@@ -821,6 +831,20 @@ export default function Home() {
     if (!time) return "";
     return minutesToTime(timeToMinutes(time) + diffMinutes);
   }
+
+  const completedDistanceKm = routeSections
+    .filter((section) => section.completed)
+    .reduce((total, section) => total + section.distanceKm, 0);
+
+  const totalDistanceKm = routeSections.reduce(
+    (total, section) => total + section.distanceKm,
+    0
+  );
+
+  const completedProgressPercent =
+    totalDistanceKm === 0
+      ? 0
+      : Math.round((completedDistanceKm / totalDistanceKm) * 100);
 
   const visibleRunners = runners
     .filter((runner) =>
@@ -1001,351 +1025,387 @@ export default function Home() {
       </div>
 
       <div className="mt-8 rounded-xl bg-white p-4 shadow-md sm:p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <h2 className="text-2xl font-semibold text-gray-900">
             Route Sections
           </h2>
 
-          {isAdmin && (
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-end">
+            <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 lg:w-72">
+              <div className="mb-2 flex items-center justify-between text-sm font-medium text-gray-700">
+                <span>
+                  Completed {completedDistanceKm.toFixed(1)} /{" "}
+                  {totalDistanceKm.toFixed(1)} km
+                </span>
+
+                <span>{completedProgressPercent}%</span>
+              </div>
+
+              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full rounded-full bg-green-500 transition-all duration-300"
+                  style={{
+                    width: `${completedProgressPercent}%`,
+                  }}
+                />
+              </div>
+            </div>
+
             <button
               type="button"
-              className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
-              onClick={handleAddSection}
+              className="rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white"
+              onClick={() =>
+                setHideCompletedSections((current) => !current)
+              }
             >
-              Add Section
+              {hideCompletedSections ? "Show Completed" : "Hide Completed"}
             </button>
-          )}
+
+            {isAdmin && (
+              <button
+                type="button"
+                className="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
+                onClick={handleAddSection}
+              >
+                Add Section
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 space-y-4 md:hidden">
-          {routeSections.map((section) => {
-            const distanceKm = section.distanceKm;
-            const elevationGainM = section.elevationGainM;
-            const difficulty = calculateDifficulty(distanceKm, elevationGainM);
+          {routeSections
+            .filter((section) =>
+              hideCompletedSections ? !section.completed : true
+            )
+            .map((section) => {
+              const distanceKm = section.distanceKm;
+              const elevationGainM = section.elevationGainM;
+              const difficulty = calculateDifficulty(distanceKm, elevationGainM);
 
-            return (
-              <div
-                key={section.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-              >
-                <h3 className="text-xl font-bold text-gray-900">
-                  {section.name}
-                </h3>
-                {section.completed && (
-                  <span className="mt-2 inline-block rounded bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
-                    Completed
-                  </span>
-                )}
-
-
-                <label className="mt-3 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={section.completed}
-                    onChange={() => toggleSectionCompleted(section.id, section.completed)}
-                  />
-                  <span className="text-sm">
-                    {section.completed ? "Done" : "Pending"}
-                  </span>
-                </label>
-
-                <div className="mt-4 space-y-3 text-sm text-gray-700">
-                  {isAdmin ? (
-                    <>
-                      <input
-                        className="w-full rounded border border-gray-300 px-3 py-2"
-                        placeholder="Start point"
-                        value={section.startPoint}
-                        onChange={(event) =>
-                          handleSectionTextChange(
-                            section.id,
-                            "startPoint",
-                            event.target.value
-                          )
-                        }
-                        onBlur={(event) =>
-                          handleSectionTextSave(
-                            section.id,
-                            "start_point",
-                            event.target.value
-                          )
-                        }
-
-                      />
-
-                      <input
-                        className="w-full rounded border border-gray-300 px-3 py-2"
-                        placeholder="End point"
-                        value={section.endPoint}
-                        onChange={(event) =>
-                          handleSectionTextChange(
-                            section.id,
-                            "endPoint",
-                            event.target.value
-                          )
-                        }
-                        onBlur={(event) =>
-                          handleSectionTextSave(
-                            section.id,
-                            "end_point",
-                            event.target.value
-                          )
-                        }
-
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <p>
-                        <span className="font-semibold">Start:</span>{" "}
-                        {section.startPoint || "-"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">End:</span>{" "}
-                        {section.endPoint || "-"}
-                      </p>
-                    </>
+              return (
+                <div
+                  key={section.id}
+                  className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                >
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {section.name}
+                  </h3>
+                  {section.completed && (
+                    <span className="mt-2 inline-block rounded bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                      Completed
+                    </span>
                   )}
 
-                  <p>
-                    <span className="font-semibold">Distance:</span>{" "}
-                    {distanceKm} km / {convertKmToMiles(distanceKm)} mi
-                  </p>
 
-                  <p>
-                    <span className="font-semibold">Elevation Gain:</span>{" "}
-                    {elevationGainM} m
-                  </p>
-
-                  <p>
-                    <span className="font-semibold">Difficulty:</span>{" "}
-                    <span
-                      className={`rounded-full px-3 py-1 text-sm font-semibold ${getDifficultyStyle(
-                        difficulty
-                      )}`}
-                    >
-                      {difficulty}
+                  <label className="mt-3 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={section.completed}
+                      onChange={() => toggleSectionCompleted(section.id, section.completed)}
+                    />
+                    <span className="text-sm">
+                      {section.completed ? "Done" : "Pending"}
                     </span>
-                  </p>
+                  </label>
 
-
-                  <p>
-                    <span className="font-semibold">Start Time:</span>{" "}
+                  <div className="mt-4 space-y-3 text-sm text-gray-700">
                     {isAdmin ? (
-                      <div className="mt-1 flex gap-2">
+                      <>
                         <input
-                          type="time"
-                          step="1"
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                          value={section.startTime}
+                          className="w-full rounded border border-gray-300 px-3 py-2"
+                          placeholder="Start point"
+                          value={section.startPoint}
                           onChange={(event) =>
-                            handleTimeChange(
+                            handleSectionTextChange(
                               section.id,
-                              "startTime",
+                              "startPoint",
                               event.target.value
                             )
                           }
-                          onFocus={(event) => {
-                            event.currentTarget.dataset.oldValue =
-                              section.startTime;
-                          }}
+                          onBlur={(event) =>
+                            handleSectionTextSave(
+                              section.id,
+                              "start_point",
+                              event.target.value
+                            )
+                          }
+
+                        />
+
+                        <input
+                          className="w-full rounded border border-gray-300 px-3 py-2"
+                          placeholder="End point"
+                          value={section.endPoint}
+                          onChange={(event) =>
+                            handleSectionTextChange(
+                              section.id,
+                              "endPoint",
+                              event.target.value
+                            )
+                          }
+                          onBlur={(event) =>
+                            handleSectionTextSave(
+                              section.id,
+                              "end_point",
+                              event.target.value
+                            )
+                          }
+
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          <span className="font-semibold">Start:</span>{" "}
+                          {section.startPoint || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">End:</span>{" "}
+                          {section.endPoint || "-"}
+                        </p>
+                      </>
+                    )}
+
+                    <p>
+                      <span className="font-semibold">Distance:</span>{" "}
+                      {distanceKm} km / {convertKmToMiles(distanceKm)} mi
+                    </p>
+
+                    <p>
+                      <span className="font-semibold">Elevation Gain:</span>{" "}
+                      {elevationGainM} m
+                    </p>
+
+                    <p>
+                      <span className="font-semibold">Difficulty:</span>{" "}
+                      <span
+                        className={`rounded-full px-3 py-1 text-sm font-semibold ${getDifficultyStyle(
+                          difficulty
+                        )}`}
+                      >
+                        {difficulty}
+                      </span>
+                    </p>
+
+
+                    <div>
+                      <span className="font-semibold">Start Time:</span>{" "}
+                      {isAdmin ? (
+                        <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                          <input
+                            type="time"
+                            step="1"
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            value={section.startTime}
+                            onChange={(event) =>
+                              handleTimeChange(
+                                section.id,
+                                "startTime",
+                                event.target.value
+                              )
+                            }
+                            onFocus={(event) => {
+                              event.currentTarget.dataset.oldValue =
+                                section.startTime;
+                            }}
+                          />
+
+                          <button
+                            type="button"
+                            className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
+                            onClick={(event) => {
+                              const input =
+                                event.currentTarget
+                                  .previousElementSibling as HTMLInputElement;
+
+                              handleTimeSave(
+                                section.id,
+                                "start_time",
+                                input.dataset.oldValue ?? section.startTime,
+                                input.value
+                              );
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      ) : (
+                        section.startTime || "-"
+                      )}
+                    </div>
+
+                    <div className="mt-2">
+                      <span className="font-semibold">Arrival Time:</span>{" "}
+                      {isAdmin ? (
+                        <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                          <input
+                            type="time"
+                            step="1"
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            value={section.arrivalTime}
+                            onChange={(event) =>
+                              handleTimeChange(
+                                section.id,
+                                "arrivalTime",
+                                event.target.value
+                              )
+                            }
+                            onFocus={(event) => {
+                              event.currentTarget.dataset.oldValue =
+                                section.arrivalTime;
+                            }}
+                          />
+
+                          <button
+                            type="button"
+                            className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
+                            onClick={(event) => {
+                              const input =
+                                event.currentTarget
+                                  .previousElementSibling as HTMLInputElement;
+
+                              handleTimeSave(
+                                section.id,
+                                "arrival_time",
+                                input.dataset.oldValue ?? section.arrivalTime,
+                                input.value
+                              );
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      ) : (
+                        section.arrivalTime || "-"
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {isAdmin ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
+                          placeholder="Paste route URL"
+                          value={routeUrls[section.id] ?? ""}
+                          onChange={(event) =>
+                            handleRouteUrlChange(section.id, event.target.value)
+                          }
+                          onBlur={() => handleRouteUrlSave(section.id)}
                         />
 
                         <button
                           type="button"
-                          className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
-                          onClick={(event) => {
-                            const input =
-                              event.currentTarget
-                                .previousElementSibling as HTMLInputElement;
-
-                            handleTimeSave(
-                              section.id,
-                              "start_time",
-                              input.dataset.oldValue ?? section.startTime,
-                              input.value
-                            );
-                          }}
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    ) : (
-                      section.startTime || "-"
-                    )}
-                  </p>
-
-                  <p className="mt-2">
-                    <span className="font-semibold">Arrival Time:</span>{" "}
-                    {isAdmin ? (
-                      <div className="mt-1 flex gap-2">
-                        <input
-                          type="time"
-                          step="1"
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                          value={section.arrivalTime}
-                          onChange={(event) =>
-                            handleTimeChange(
-                              section.id,
-                              "arrivalTime",
-                              event.target.value
-                            )
+                          className="rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
+                          disabled={!routeUrls[section.id]}
+                          onClick={() =>
+                            window.open(routeUrls[section.id], "_blank")
                           }
-                          onFocus={(event) => {
-                            event.currentTarget.dataset.oldValue =
-                              section.arrivalTime;
-                          }}
-                        />
-
-                        <button
-                          type="button"
-                          className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
-                          onClick={(event) => {
-                            const input =
-                              event.currentTarget
-                                .previousElementSibling as HTMLInputElement;
-
-                            handleTimeSave(
-                              section.id,
-                              "arrival_time",
-                              input.dataset.oldValue ?? section.arrivalTime,
-                              input.value
-                            );
-                          }}
                         >
-                          Apply
+                          Open
                         </button>
                       </div>
-                    ) : (
-                      section.arrivalTime || "-"
-                    )}
-                  </p>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {isAdmin ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="url"
-                        className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
-                        placeholder="Paste route URL"
-                        value={routeUrls[section.id] ?? ""}
-                        onChange={(event) =>
-                          handleRouteUrlChange(section.id, event.target.value)
-                        }
-                        onBlur={() => handleRouteUrlSave(section.id)}
-                      />
-
+                    ) : routeUrls[section.id] ? (
                       <button
                         type="button"
-                        className="rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
-                        disabled={!routeUrls[section.id]}
+                        className="rounded bg-gray-700 px-3 py-2 text-sm text-white"
                         onClick={() =>
                           window.open(routeUrls[section.id], "_blank")
                         }
                       >
-                        Open
+                        Open Route
                       </button>
-                    </div>
-                  ) : routeUrls[section.id] ? (
-                    <button
-                      type="button"
-                      className="rounded bg-gray-700 px-3 py-2 text-sm text-white"
-                      onClick={() =>
-                        window.open(routeUrls[section.id], "_blank")
-                      }
-                    >
-                      Open Route
-                    </button>
-                  ) : null}
+                    ) : null}
 
-                  {isAdmin && (
-                    <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
-                      Choose File
-                      <input
-                        type="file"
-                        accept=".gpx"
-                        className="hidden"
-                        onChange={(event) =>
-                          handleGpxUpload(
-                            section.id,
-                            event.target.files?.[0] ?? null
-                          )
-                        }
-                      />
-                    </label>
-                  )}
+                    {isAdmin && (
+                      <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
+                        Choose File
+                        <input
+                          type="file"
+                          accept=".gpx"
+                          className="hidden"
+                          onChange={(event) =>
+                            handleGpxUpload(
+                              section.id,
+                              event.target.files?.[0] ?? null
+                            )
+                          }
+                        />
+                      </label>
+                    )}
 
-                  {isAdmin ? (
-                    <div className="relative">
+                    {isAdmin ? (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
+                          onClick={() =>
+                            setOpenSectionId(
+                              openSectionId === section.id ? null : section.id
+                            )
+                          }
+                        >
+                          {getAssignedRunnerNames(section.id)}
+                        </button>
+
+                        {openSectionId === section.id && (
+                          <div className="absolute z-20 mt-2 w-full rounded border border-gray-300 bg-white p-3 shadow-lg">
+                            {runners.map((runner) => {
+                              const assignedRunnerIds =
+                                runnerAssignments[section.id] ?? [];
+                              const isChecked = assignedRunnerIds.includes(
+                                runner.id
+                              );
+
+                              return (
+                                <label
+                                  key={runner.id}
+                                  className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() =>
+                                      toggleRunner(section.id, runner.id)
+                                    }
+                                  />
+                                  <span>{runner.englishName}</span>
+                                </label>
+                              );
+                            })}
+
+                            <button
+                              type="button"
+                              className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
+                              onClick={() => setOpenSectionId(null)}
+                            >
+                              Done
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm">
+                        <span className="font-semibold">Runner:</span>{" "}
+                        {getAssignedRunnerNames(section.id)}
+                      </p>
+                    )}
+
+                    {isAdmin && (
                       <button
                         type="button"
-                        className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
-                        onClick={() =>
-                          setOpenSectionId(
-                            openSectionId === section.id ? null : section.id
-                          )
-                        }
+                        className="w-full rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
+                        onClick={() => handleDeleteSection(section.id)}
                       >
-                        {getAssignedRunnerNames(section.id)}
+                        Delete Section
                       </button>
-
-                      {openSectionId === section.id && (
-                        <div className="absolute z-20 mt-2 w-full rounded border border-gray-300 bg-white p-3 shadow-lg">
-                          {runners.map((runner) => {
-                            const assignedRunnerIds =
-                              runnerAssignments[section.id] ?? [];
-                            const isChecked = assignedRunnerIds.includes(
-                              runner.id
-                            );
-
-                            return (
-                              <label
-                                key={runner.id}
-                                className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() =>
-                                    toggleRunner(section.id, runner.id)
-                                  }
-                                />
-                                <span>{runner.englishName}</span>
-                              </label>
-                            );
-                          })}
-
-                          <button
-                            type="button"
-                            className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
-                            onClick={() => setOpenSectionId(null)}
-                          >
-                            Done
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm">
-                      <span className="font-semibold">Runner:</span>{" "}
-                      {getAssignedRunnerNames(section.id)}
-                    </p>
-                  )}
-
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      className="w-full rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
-                      onClick={() => handleDeleteSection(section.id)}
-                    >
-                      Delete Section
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
 
         <div className="mt-4 hidden overflow-x-auto md:block">
@@ -1399,343 +1459,347 @@ export default function Home() {
             </thead>
 
             <tbody>
-              {routeSections.map((section) => {
-                const distanceKm = section.distanceKm;
-                const elevationGainM = section.elevationGainM;
-                const difficulty = calculateDifficulty(
-                  distanceKm,
-                  elevationGainM
-                );
+              {routeSections
+                .filter((section) =>
+                  hideCompletedSections ? !section.completed : true
+                )
+                .map((section) => {
+                  const distanceKm = section.distanceKm;
+                  const elevationGainM = section.elevationGainM;
+                  const difficulty = calculateDifficulty(
+                    distanceKm,
+                    elevationGainM
+                  );
 
-                return (
-                  <tr key={section.id} className={section.completed ? "bg-green-50" : ""}>
-                    <td className="border border-gray-300 p-2">
-                      {section.name}
-                    </td>
-                    {/* Status */}
-                    <td className="border border-gray-300 p-2 text-center">
-                      <label className="flex items-center justify-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={section.completed}
-                          onChange={() =>
-                            toggleSectionCompleted(
-                              section.id,
-                              section.completed
-                            )
-                          }
-                        />
-                        <span className="text-sm">
-                          {section.completed ? "Done" : "Pending"}
-                        </span>
-                      </label>
-                    </td>
-
-                    {/* Start Point */}
-                    <td className="border border-gray-300 p-2">
-                      {isAdmin ? (
-                        <input
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                          placeholder="Start point"
-                          value={section.startPoint}
-                          onChange={(event) =>
-                            handleSectionTextChange(
-                              section.id,
-                              "startPoint",
-                              event.target.value
-                            )
-                          }
-                          onBlur={(event) =>
-                            handleSectionTextSave(
-                              section.id,
-                              "start_point",
-                              event.target.value
-                            )
-                          }
-
-                        />
-                      ) : (
-                        <span className="text-sm">
-                          {section.startPoint || "-"}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      {isAdmin ? (
-                        <input
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                          placeholder="End point"
-                          value={section.endPoint}
-                          onChange={(event) =>
-                            handleSectionTextChange(
-                              section.id,
-                              "endPoint",
-                              event.target.value
-                            )
-                          }
-                          onBlur={(event) =>
-                            handleSectionTextSave(
-                              section.id,
-                              "end_point",
-                              event.target.value
-                            )
-                          }
-                        />
-                      ) : (
-                        <span className="text-sm">
-                          {section.endPoint || "-"}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-center">
-                      <div>{distanceKm} km</div>
-                      <div className="text-xs text-gray-500">
-                        {convertKmToMiles(distanceKm)} mi
-                      </div>
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-center">
-                      {elevationGainM}
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-sm font-semibold ${getDifficultyStyle(
-                          difficulty
-                        )}`}
-                      >
-                        {difficulty}
-                      </span>
-                    </td>
-
-                    <td className="border border-gray-300 p-2">
-                      {isAdmin ? (
-                        <div className="flex gap-2">
+                  return (
+                    <tr key={section.id} className={section.completed ? "bg-green-50" : ""}>
+                      <td className="border border-gray-300 p-2">
+                        {section.name}
+                      </td>
+                      {/* Status */}
+                      <td className="border border-gray-300 p-2 text-center">
+                        <label className="flex items-center justify-center gap-2">
                           <input
-                            type="url"
-                            className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
-                            placeholder="Paste route URL"
-                            value={routeUrls[section.id] ?? ""}
-                            onChange={(event) =>
-                              handleRouteUrlChange(
+                            type="checkbox"
+                            checked={section.completed}
+                            onChange={() =>
+                              toggleSectionCompleted(
                                 section.id,
+                                section.completed
+                              )
+                            }
+                          />
+                          <span className="text-sm">
+                            {section.completed ? "Done" : "Pending"}
+                          </span>
+                        </label>
+                      </td>
+
+                      {/* Start Point */}
+                      <td className="border border-gray-300 p-2">
+                        {isAdmin ? (
+                          <input
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="Start point"
+                            value={section.startPoint}
+                            onChange={(event) =>
+                              handleSectionTextChange(
+                                section.id,
+                                "startPoint",
                                 event.target.value
                               )
                             }
-                            onBlur={() => handleRouteUrlSave(section.id)}
-                          />
+                            onBlur={(event) =>
+                              handleSectionTextSave(
+                                section.id,
+                                "start_point",
+                                event.target.value
+                              )
+                            }
 
+                          />
+                        ) : (
+                          <span className="text-sm">
+                            {section.startPoint || "-"}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="border border-gray-300 p-2">
+                        {isAdmin ? (
+                          <input
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="End point"
+                            value={section.endPoint}
+                            onChange={(event) =>
+                              handleSectionTextChange(
+                                section.id,
+                                "endPoint",
+                                event.target.value
+                              )
+                            }
+                            onBlur={(event) =>
+                              handleSectionTextSave(
+                                section.id,
+                                "end_point",
+                                event.target.value
+                              )
+                            }
+                          />
+                        ) : (
+                          <span className="text-sm">
+                            {section.endPoint || "-"}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="border border-gray-300 p-2 text-center">
+                        <div>{distanceKm} km</div>
+                        <div className="text-xs text-gray-500">
+                          {convertKmToMiles(distanceKm)} mi
+                        </div>
+                      </td>
+
+                      <td className="border border-gray-300 p-2 text-center">
+                        {elevationGainM}
+                      </td>
+
+                      <td className="border border-gray-300 p-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-sm font-semibold ${getDifficultyStyle(
+                            difficulty
+                          )}`}
+                        >
+                          {difficulty}
+                        </span>
+                      </td>
+
+                      <td className="border border-gray-300 p-2">
+                        {isAdmin ? (
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900"
+                              placeholder="Paste route URL"
+                              value={routeUrls[section.id] ?? ""}
+                              onChange={(event) =>
+                                handleRouteUrlChange(
+                                  section.id,
+                                  event.target.value
+                                )
+                              }
+                              onBlur={() => handleRouteUrlSave(section.id)}
+                            />
+
+                            <button
+                              type="button"
+                              className="whitespace-nowrap rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
+                              disabled={!routeUrls[section.id]}
+                              onClick={() =>
+                                window.open(routeUrls[section.id], "_blank")
+                              }
+                            >
+                              Open
+                            </button>
+                          </div>
+                        ) : routeUrls[section.id] ? (
                           <button
                             type="button"
-                            className="whitespace-nowrap rounded bg-gray-700 px-3 py-2 text-sm text-white disabled:bg-gray-300"
-                            disabled={!routeUrls[section.id]}
+                            className="rounded bg-gray-700 px-3 py-2 text-sm text-white"
                             onClick={() =>
                               window.open(routeUrls[section.id], "_blank")
                             }
                           >
                             Open
                           </button>
-                        </div>
-                      ) : routeUrls[section.id] ? (
-                        <button
-                          type="button"
-                          className="rounded bg-gray-700 px-3 py-2 text-sm text-white"
-                          onClick={() =>
-                            window.open(routeUrls[section.id], "_blank")
-                          }
-                        >
-                          Open
-                        </button>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-
-                    {isAdmin && (
-                      <td className="border border-gray-300 p-2">
-                        <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
-                          Choose File
-                          <input
-                            type="file"
-                            accept=".gpx"
-                            className="hidden"
-                            onChange={(event) =>
-                              handleGpxUpload(
-                                section.id,
-                                event.target.files?.[0] ?? null
-                              )
-                            }
-                          />
-                        </label>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
                       </td>
-                    )}
 
-                    <td className="relative border border-gray-300 p-2">
-                      {isAdmin ? (
-                        <>
-                          <button
-                            type="button"
-                            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
-                            onClick={() =>
-                              setOpenSectionId(
-                                openSectionId === section.id
-                                  ? null
-                                  : section.id
-                              )
-                            }
-                          >
+                      {isAdmin && (
+                        <td className="border border-gray-300 p-2">
+                          <label className="inline-block cursor-pointer rounded bg-gray-700 px-3 py-2 text-sm font-semibold text-white">
+                            Choose File
+                            <input
+                              type="file"
+                              accept=".gpx"
+                              className="hidden"
+                              onChange={(event) =>
+                                handleGpxUpload(
+                                  section.id,
+                                  event.target.files?.[0] ?? null
+                                )
+                              }
+                            />
+                          </label>
+                        </td>
+                      )}
+
+                      <td className="relative border border-gray-300 p-2">
+                        {isAdmin ? (
+                          <>
+                            <button
+                              type="button"
+                              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-left text-gray-900"
+                              onClick={() =>
+                                setOpenSectionId(
+                                  openSectionId === section.id
+                                    ? null
+                                    : section.id
+                                )
+                              }
+                            >
+                              {getAssignedRunnerNames(section.id)}
+                            </button>
+
+                            {openSectionId === section.id && (
+                              <div className="absolute z-10 mt-2 w-64 rounded border border-gray-300 bg-white p-3 shadow-lg">
+                                {runners.map((runner) => {
+                                  const assignedRunnerIds =
+                                    runnerAssignments[section.id] ?? [];
+                                  const isChecked = assignedRunnerIds.includes(
+                                    runner.id
+                                  );
+
+                                  return (
+                                    <label
+                                      key={runner.id}
+                                      className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() =>
+                                          toggleRunner(section.id, runner.id)
+                                        }
+                                      />
+                                      <span>{runner.englishName}</span>
+                                    </label>
+                                  );
+                                })}
+
+                                <button
+                                  type="button"
+                                  className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
+                                  onClick={() => setOpenSectionId(null)}
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-sm">
                             {getAssignedRunnerNames(section.id)}
-                          </button>
-
-                          {openSectionId === section.id && (
-                            <div className="absolute z-10 mt-2 w-64 rounded border border-gray-300 bg-white p-3 shadow-lg">
-                              {runners.map((runner) => {
-                                const assignedRunnerIds =
-                                  runnerAssignments[section.id] ?? [];
-                                const isChecked = assignedRunnerIds.includes(
-                                  runner.id
-                                );
-
-                                return (
-                                  <label
-                                    key={runner.id}
-                                    className="flex cursor-pointer items-center gap-2 p-2 text-gray-900"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={() =>
-                                        toggleRunner(section.id, runner.id)
-                                      }
-                                    />
-                                    <span>{runner.englishName}</span>
-                                  </label>
-                                );
-                              })}
-
-                              <button
-                                type="button"
-                                className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-white"
-                                onClick={() => setOpenSectionId(null)}
-                              >
-                                Done
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-sm">
-                          {getAssignedRunnerNames(section.id)}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-center">
-                      {isAdmin ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            step="1"
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                            value={section.startTime}
-                            onChange={(event) =>
-                              handleTimeChange(
-                                section.id,
-                                "startTime",
-                                event.target.value
-                              )
-                            }
-                            onFocus={(event) => {
-                              event.currentTarget.dataset.oldValue =
-                                section.startTime;
-                            }}
-                          />
-
-                          <button
-                            type="button"
-                            className="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white"
-                            onClick={(event) => {
-                              const input =
-                                event.currentTarget
-                                  .previousElementSibling as HTMLInputElement;
-
-                              handleTimeSave(
-                                section.id,
-                                "start_time",
-                                input.dataset.oldValue ?? section.startTime,
-                                input.value
-                              );
-                            }}
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      ) : (
-                        section.startTime || "-"
-                      )}
-                    </td>
-
-                    <td className="border border-gray-300 p-2 text-center">
-                      {isAdmin ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            step="1"
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                            value={section.arrivalTime}
-                            onChange={(event) =>
-                              handleTimeChange(
-                                section.id,
-                                "arrivalTime",
-                                event.target.value
-                              )
-                            }
-                            onFocus={(event) => {
-                              event.currentTarget.dataset.oldValue =
-                                section.arrivalTime;
-                            }}
-                          />
-
-                          <button
-                            type="button"
-                            className="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white"
-                            onClick={(event) => {
-                              const input =
-                                event.currentTarget
-                                  .previousElementSibling as HTMLInputElement;
-
-                              handleTimeSave(
-                                section.id,
-                                "arrival_time",
-                                input.dataset.oldValue ?? section.arrivalTime,
-                                input.value
-                              );
-                            }}
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      ) : (
-                        section.arrivalTime || "-"
-                      )}
-                    </td>
-
-                    {isAdmin && (
-                      <td className="border border-gray-300 p-2">
-                        <button
-                          type="button"
-                          className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
-                          onClick={() => handleDeleteSection(section.id)}
-                        >
-                          Delete
-                        </button>
+                          </span>
+                        )}
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
+
+                      <td className="border border-gray-300 p-2 text-center">
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              step="1"
+                              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                              value={section.startTime}
+                              onChange={(event) =>
+                                handleTimeChange(
+                                  section.id,
+                                  "startTime",
+                                  event.target.value
+                                )
+                              }
+                              onFocus={(event) => {
+                                event.currentTarget.dataset.oldValue =
+                                  section.startTime;
+                              }}
+                            />
+
+                            <button
+                              type="button"
+                              className="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white"
+                              onClick={(event) => {
+                                const input =
+                                  event.currentTarget
+                                    .previousElementSibling as HTMLInputElement;
+
+                                handleTimeSave(
+                                  section.id,
+                                  "start_time",
+                                  input.dataset.oldValue ?? section.startTime,
+                                  input.value
+                                );
+                              }}
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        ) : (
+                          section.startTime || "-"
+                        )}
+                      </td>
+
+                      <td className="border border-gray-300 p-2 text-center">
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              step="1"
+                              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                              value={section.arrivalTime}
+                              onChange={(event) =>
+                                handleTimeChange(
+                                  section.id,
+                                  "arrivalTime",
+                                  event.target.value
+                                )
+                              }
+                              onFocus={(event) => {
+                                event.currentTarget.dataset.oldValue =
+                                  section.arrivalTime;
+                              }}
+                            />
+
+                            <button
+                              type="button"
+                              className="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white"
+                              onClick={(event) => {
+                                const input =
+                                  event.currentTarget
+                                    .previousElementSibling as HTMLInputElement;
+
+                                handleTimeSave(
+                                  section.id,
+                                  "arrival_time",
+                                  input.dataset.oldValue ?? section.arrivalTime,
+                                  input.value
+                                );
+                              }}
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        ) : (
+                          section.arrivalTime || "-"
+                        )}
+                      </td>
+
+                      {isAdmin && (
+                        <td className="border border-gray-300 p-2">
+                          <button
+                            type="button"
+                            className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white"
+                            onClick={() => handleDeleteSection(section.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -1751,46 +1815,50 @@ export default function Home() {
         ) : (
           <div className="mt-6 overflow-x-auto">
             <div className="flex min-w-[900px] items-end gap-2">
-              {routeSections.map((section) => {
-                const height = Math.max(
-                  Math.min(section.elevationGainM, 150),
-                  10
-                );
+              {routeSections
+                .filter((section) =>
+                  hideCompletedSections ? !section.completed : true
+                )
+                .map((section) => {
+                  const height = Math.max(
+                    Math.min(section.elevationGainM, 150),
+                    10
+                  );
 
-                const difficulty = calculateDifficulty(
-                  section.distanceKm,
-                  section.elevationGainM
-                );
+                  const difficulty = calculateDifficulty(
+                    section.distanceKm,
+                    section.elevationGainM
+                  );
 
-                const barColor =
-                  difficulty === "hard"
-                    ? "bg-red-500"
-                    : difficulty === "medium"
-                      ? "bg-yellow-500"
-                      : "bg-green-500";
+                  const barColor =
+                    difficulty === "hard"
+                      ? "bg-red-500"
+                      : difficulty === "medium"
+                        ? "bg-yellow-500"
+                        : "bg-green-500";
 
-                return (
-                  <div
-                    key={section.id}
-                    className="flex flex-1 flex-col items-center"
-                  >
-                    <div className="mb-2 text-xs text-gray-600">
-                      {section.elevationGainM}m
-                    </div>
-
+                  return (
                     <div
-                      className={`w-full rounded-t ${barColor}`}
-                      style={{
-                        height: `${height}px`,
-                      }}
-                    />
+                      key={section.id}
+                      className="flex flex-1 flex-col items-center"
+                    >
+                      <div className="mb-2 text-xs text-gray-600">
+                        {section.elevationGainM}m
+                      </div>
 
-                    <div className="mt-2 text-xs font-medium text-gray-700">
-                      {section.order}
+                      <div
+                        className={`w-full rounded-t ${barColor}`}
+                        style={{
+                          height: `${height}px`,
+                        }}
+                      />
+
+                      <div className="mt-2 text-xs font-medium text-gray-700">
+                        {section.order}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </div>
         )}
